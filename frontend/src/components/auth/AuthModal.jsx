@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { 
   Sparkles, 
@@ -18,7 +18,7 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
   const { login, register } = useAuth();
   const [isRegister, setIsRegister] = useState(initialIsRegister);
   
-  // Form fields
+  // Form fields - explicitly empty
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -31,9 +31,13 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen) {
       setIsRegister(initialIsRegister);
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+      setFullName('');
       setError('');
       setFieldErrors({});
     }
@@ -117,6 +121,10 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
 
   const switchMode = (regMode) => {
     setIsRegister(regMode);
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setFullName('');
     setError('');
     setFieldErrors({});
   };
@@ -225,8 +233,12 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
           </button>
         </div>
 
-        {/* Body Form */}
-        <form onSubmit={handleSubmit} noValidate>
+        {/* Body Form with explicit anti-autofill */}
+        <form onSubmit={handleSubmit} noValidate autoComplete="off">
+          {/* Hidden inputs to capture rogue browser autofill */}
+          <input type="text" style={{ display: 'none' }} tabIndex="-1" autoComplete="off" />
+          <input type="password" style={{ display: 'none' }} tabIndex="-1" autoComplete="off" />
+
           <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             
             {/* Global Error Banner */}
@@ -260,13 +272,14 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
                   <User size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: fieldErrors.fullName ? 'var(--danger)' : 'var(--text-muted)' }} />
                   <input
                     type="text"
-                    autoComplete="name"
+                    name="register_user_fullname_custom"
+                    autoComplete="off"
                     className="form-input"
                     style={{
                       paddingLeft: '38px',
                       borderColor: fieldErrors.fullName ? 'var(--danger)' : 'var(--border-subtle)'
                     }}
-                    placeholder="e.g. Anshul Sharma"
+                    placeholder="Enter your full name"
                     value={fullName}
                     onChange={(e) => {
                       setFullName(e.target.value);
@@ -292,13 +305,14 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
                 <Mail size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: fieldErrors.email ? 'var(--danger)' : 'var(--text-muted)' }} />
                 <input
                   type="email"
-                  autoComplete="email"
+                  name="auth_email_field_custom"
+                  autoComplete="new-password"
                   className="form-input"
                   style={{
                     paddingLeft: '38px',
                     borderColor: fieldErrors.email ? 'var(--danger)' : 'var(--border-subtle)'
                   }}
-                  placeholder="e.g. anshul@example.com"
+                  placeholder="name@example.com"
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
@@ -331,7 +345,8 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
                 <Lock size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: fieldErrors.password ? 'var(--danger)' : 'var(--text-muted)' }} />
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  autoComplete={isRegister ? 'new-password' : 'current-password'}
+                  name="auth_password_field_custom"
+                  autoComplete="new-password"
                   className="form-input"
                   style={{
                     paddingLeft: '38px',
@@ -380,6 +395,7 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
                   <ShieldCheck size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: fieldErrors.confirmPassword ? 'var(--danger)' : 'var(--text-muted)' }} />
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
+                    name="auth_confirm_password_field_custom"
                     autoComplete="new-password"
                     className="form-input"
                     style={{
