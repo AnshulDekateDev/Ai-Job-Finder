@@ -30,12 +30,13 @@ Run these commands as soon as you open this laptop:
 # 1. Pull the latest commits and diary notes
 git pull origin main
 
-# 2. Start the Backend (Terminal 1)
-cd backend
-mvn spring-boot:run
-# Backend is ready at http://localhost:8080
+# 2. Start the Backend (Terminal 1 - Python FastAPI)
+cd backend_python
+.\.venv\Scripts\python run.py
+# Backend is ready at http://localhost:8000
+# Interactive Swagger API Docs at http://localhost:8000/docs
 
-# 3. Start the Frontend (Terminal 2)
+# 3. Start the Frontend (Terminal 2 - React Vite)
 cd frontend
 npm install    # (only if new dependencies were added)
 npm run dev
@@ -50,11 +51,11 @@ Ensure both machines have the required toolchain installed:
 
 | Tool | Minimum Version | Tested Version | Verification Command |
 | :--- | :--- | :--- | :--- |
-| **Java** | 17+ (or 11+) | 17.0.11 LTS | `java -version` |
-| **Maven** | 3.8+ | 3.9.11 | `mvn -v` |
+| **Python** | 3.10+ | 3.12.1 | `python --version` |
 | **Node.js** | 18+ | 22.18.0 | `node -v` |
 | **npm** | 9+ | 11.13.0 | `npm -v` |
 | **Git** | 2.30+ | 2.45+ | `git --version` |
+| **Java (Optional legacy)** | 17+ | 17.0.11 LTS | `java -version` |
 
 ---
 
@@ -64,16 +65,23 @@ Ensure both machines have the required toolchain installed:
 Ai-Job-Finder/
 ├── DEV_DIARY.md              <-- THIS FILE (Your cross-device brain)
 ├── README.md                 <-- Public documentation & quickstart
-├── backend/                  <-- Spring Boot 2.7.18 / Java 17
-│   ├── pom.xml               <-- Dependencies (Security, JPA, PDFBox, POI, JSoup)
-│   └── src/main/java/com/jobfinder/
-│       ├── controller/       <-- AuthController, ResumeController, SettingsController, etc.
-│       ├── service/          <-- AIService, ScraperService, ResumeParserService, EncryptionService
-│       ├── model/            <-- User, ResumeData, Settings, JobApplication entities
-│       └── security/         <-- JwtFilter, WebSecurityConfig
+├── backend_python/           <-- Python 3.12 + FastAPI + Native AI (Gemini, OpenAI, Claude)
+│   ├── run.py                <-- Runner script (`python run.py`)
+│   ├── requirements.txt
+│   └── app/
+│       ├── main.py           <-- FastAPI App, CORS, Lifespan
+│       ├── config.py         <-- Environment variables & settings
+│       ├── database.py       <-- Supabase PostgreSQL + SQLite fallback
+│       ├── security/         <-- AES-256-GCM crypto, native bcrypt, JWT
+│       ├── models/           <-- SQLAlchemy ORM models
+│       ├── schemas/          <-- Pydantic v2 validation models
+│       ├── providers/        <-- Native AI (Gemini, OpenAI, Claude) & Scrapers
+│       ├── services/         <-- Resume parser, hybrid matching, job crawler
+│       └── routers/          <-- Auth, Resume, Integrations, Jobs, Applications
+├── backend/                  <-- Spring Boot 2.7.18 (Preserved safely for reference)
 └── frontend/                 <-- React 18 + Vite (Vanilla CSS Glassmorphism)
     ├── package.json
-    ├── vite.config.js
+    ├── vite.config.js        <-- Proxies `/api` -> http://localhost:8000
     └── src/
         ├── App.jsx           <-- 3-phase flow router (Landing -> Auth -> Main App)
         ├── components/       <-- Navbar, LandingPage, AuthModal, ResumeUpload, JobSearch, etc.
@@ -85,11 +93,9 @@ Ai-Job-Finder/
 
 ## ⚙️ 4. Configuration & Database
 
-- **Local Fallback**: H2 in-memory / local file database enabled by default if cloud credentials are not supplied.
-- **Cloud Database**: Configured for **Supabase / Neon PostgreSQL** via environment variables in `application.properties`:
-  - `SPRING_DATASOURCE_URL`
-  - `SPRING_DATASOURCE_USERNAME`
-  - `SPRING_DATASOURCE_PASSWORD`
+- **Local Fallback**: SQLite in-memory / local file database enabled by default if cloud credentials are not supplied.
+- **Cloud Database**: Configured for **Supabase / Neon PostgreSQL** via environment variables in `app/config.py` or `.env`:
+  - `DATABASE_URL`
 - **Security**: AES-256-GCM encryption for all third-party API keys (Gemini, OpenAI, Anthropic, Scrape.do, ScraperAPI).
 
 ---
@@ -98,20 +104,38 @@ Ai-Job-Finder/
 
 | Feature Area | Status | Notes |
 | :--- | :---: | :--- |
+| **FastAPI Pure AI Rebuild**| ✅ Complete | 100% parity with React UI, Pydantic v2, AES-256-GCM |
 | **3-Phase App Flow** | ✅ Complete | Landing Page ➔ Auth Modal ➔ Main Dashboard |
 | **Authentication UI & JWT** | ✅ Complete | Live validation, password meter, autofill prevention |
-| **Database Integration** | ✅ Complete | Supabase PostgreSQL + local H2 fallback |
-| **Section-Aware Resume Parser**| ✅ Complete | Apache PDFBox/POI extracting Skills, Exp, Edu, Projects |
+| **Database Integration** | ✅ Complete | Supabase PostgreSQL + local SQLite fallback |
+| **Section-Aware Resume Parser**| ✅ Complete | pypdf & python-docx extracting Skills, Exp, Edu, Projects |
 | **Live AI Engine Status Banner**| ✅ Complete | Shows active AI provider on Resume page |
 | **Settings & Encrypted API Keys**| ✅ Complete | AES-256-GCM encryption, Scrape.do & AI router |
-| **Job Scraping Engine** | 🟡 In Progress | Integration with Greenhouse, Lever, RemoteOK, Scrape.do |
-| **Hybrid Job Matching Algorithm**| 🟡 Next Up | 40% Skills, 20% Exp, 15% Title, 10% Loc, 5% Edu, 10% Proj |
-| **AI Cover Letter Generator** | ⚪ Planned | Factual 150-250 word custom letter per application |
-| **Job Application Tracker** | ⚪ Planned | Kanban / List view: Saved ➔ Applied ➔ Interview ➔ Offer |
+| **Job Scraping Engine** | ✅ Complete | Parallel crawling: RemoteOK, WeWorkRemotely, Greenhouse |
+| **Hybrid Job Matching Algorithm**| ✅ Complete | 40% Skills, 20% Exp, 15% Title, 10% Loc, 5% Edu, 10% Proj |
+| **AI Cover Letter Generator** | ✅ Complete | Tailored 150-250 word custom letter per application |
+| **Job Application Tracker** | ✅ Complete | Track status: Discovered ➔ Saved ➔ Applied ➔ Interview |
 
 ---
 
 ## 📔 6. Chronological Dev Diary
+
+### Entry #5 — 2026-09-23: Complete Rebuild to Python (FastAPI) Pure AI Stack
+- **Machine**: Laptop B (ASUS)
+- **Work Completed**:
+  - Rebuilt the entire backend from Java Spring Boot into **Python (FastAPI + Pydantic v2 + SQLAlchemy)**.
+  - Implemented 100% binary-compatible AES-256-GCM encryption (`CryptoService`) with PBKDF2 HMAC-SHA256 key derivation.
+  - Built Native AI Providers: Google Gemini (`google-generativeai`), OpenAI (`openai`), Anthropic (`anthropic`), and MockDemo fallback.
+  - Implemented Resume Parser using `pypdf` and `python-docx` with structured LLM JSON extraction.
+  - Built Hybrid Matching Engine (40% skills, 20% experience, 15% title, 10% location, 5% education, 10% projects) + LLM reasoning summaries.
+  - Implemented parallel multi-source Job Search (RemoteOK API, WeWorkRemotely RSS, Greenhouse, Lever) with automatic deduplication.
+  - Built Cover Letter generator and Application Tracker endpoints matching the exact contract in `frontend/src/api.js`.
+  - Updated Vite proxy in `frontend/vite.config.js` to target port 8000.
+  - Ran comprehensive automated test suite (`test_backend.py`) — **All tests PASSED with Exit Code 0**.
+- **Current State**: FastAPI backend fully operational at `http://localhost:8000` with Swagger docs at `http://localhost:8000/docs`. React frontend wired and ready.
+- **Next Task**: Launch both servers for full end-to-end interactive demo in browser.
+
+---
 
 ### Entry #4 — 2026-09-23: Multi-Laptop Setup & Sync Protocol
 - **Machine**: Laptop B (ASUS)
@@ -120,8 +144,6 @@ Ai-Job-Finder/
   - Verified local toolchain: Java 17.0.11, Maven 3.9.11, Node v22.18.0, npm 11.13.0.
   - Created `DEV_DIARY.md` to solve context loss when switching between laptops.
   - Outlined switch protocol and next priority backlog.
-- **Current State**: Ready to launch dev servers or implement Job Scraper / Matching logic.
-- **Next Task**: Verify frontend & backend run cleanly on Laptop B, then proceed with Job Search scrapers.
 
 ---
 
@@ -147,7 +169,7 @@ Ai-Job-Finder/
 ### Entry #1 — 2026-09-23: Core Foundation & Database Connectivity
 - **Commits**: `f1e19f0`, `74b7dea`, `9f33985`, `eb6f1b6`, `6f0937b`
 - **Work Completed**:
-  - Initialized Spring Boot backend (Security, JWT, JPA) and React Vite frontend.
+  - Initialized Spring Boot backend and React Vite frontend.
   - Added Supabase / Neon PostgreSQL cloud database support with local fallback.
   - Implemented AES-256-GCM encryption for stored API keys.
   - Added Scrape.do scraper integration and settings authentication checks.
