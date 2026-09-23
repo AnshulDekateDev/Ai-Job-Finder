@@ -23,21 +23,47 @@ class GeminiProvider(BaseLLMProvider):
             text = text.split("```")[1].split("```")[0]
         return text.strip()
 
+    def _get_model_candidates(self, model_name: Optional[str]) -> list:
+        deprecated = {"gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.5-flash", "gemini-flash"}
+        candidates = []
+        if model_name and model_name not in deprecated:
+            candidates.append(model_name)
+        candidates.extend(["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"])
+        seen = set()
+        res = []
+        for c in candidates:
+            if c not in seen:
+                seen.add(c)
+                res.append(c)
+        return res
+
     def test_connection(self, api_key: str, model_name: Optional[str] = None, base_url: Optional[str] = None) -> bool:
-        try:
-            self._configure(api_key)
-            model = genai.GenerativeModel(model_name or "gemini-1.5-flash")
-            response = model.generate_content("Ping. Reply with PONG.")
-            return bool(response and response.text)
-        except Exception as e:
-            logger.error(f"Gemini test connection failed: {e}")
-            raise ValueError(f"Gemini connection failed: {str(e)}")
+        self._configure(api_key)
+        last_err = None
+        for candidate in self._get_model_candidates(model_name):
+            try:
+                model = genai.GenerativeModel(candidate)
+                response = model.generate_content("Ping. Reply with PONG.")
+                if response and response.text:
+                    return True
+            except Exception as e:
+                last_err = e
+                continue
+        if last_err:
+            raise ValueError(f"Gemini connection failed: {str(last_err)}")
+        return False
 
     def generate(self, prompt: str, api_key: str, model_name: Optional[str] = None, base_url: Optional[str] = None) -> str:
         self._configure(api_key)
-        model = genai.GenerativeModel(model_name or "gemini-1.5-flash")
-        response = model.generate_content(prompt)
-        return response.text if response else ""
+        for candidate in self._get_model_candidates(model_name):
+            try:
+                model = genai.GenerativeModel(candidate)
+                response = model.generate_content(prompt)
+                if response and response.text:
+                    return response.text
+            except Exception:
+                continue
+        return ""
 
     def parse_resume(self, resume_text: str, api_key: str, model_name: Optional[str] = None, base_url: Optional[str] = None) -> ParsedResumeResult:
         prompt = f"""
@@ -86,21 +112,26 @@ Resume Text:
 \"\"\"{resume_text[:12000]}\"\"\"
 """
         self._configure(api_key)
-        model = genai.GenerativeModel(model_name or "gemini-1.5-flash")
-        response = model.generate_content(prompt)
-        clean = self._clean_json(response.text)
+        candidates = self._get_model_candidates(model_name)
+        last_err = None
 
-        try:
-            data = json.loads(clean)
-            return ParsedResumeResult(**data)
-        except Exception as e:
-            logger.warning(f"Failed parsing Gemini JSON output: {e}. Output was: {clean[:200]}")
-            # Fallback basic extraction
-            return ParsedResumeResult(
-                candidateName="Candidate",
-                summary=clean[:300],
-                skills=["Java", "Python", "SQL"]
-            )
+        for candidate in candidates:
+            try:
+                model = genai.GenerativeModel(candidate)
+                response = model.generate_content(prompt)
+                if response and response.text:
+                    clean = self._clean_json(response.text)
+                    data = json.loads(clean)
+                    return ParsedResumeResult(**data)
+            except Exception as e:
+                last_err = e
+                logger.warning(f"Gemini model candidate {candidate} failed: {e}")
+                continue
+
+        if last_err:
+            raise ValueError(f"Gemini AI parsing failed: {str(last_err)}")
+
+        raise ValueError("Gemini returned empty response.")
 
     def explain_match(self, profile: Dict[str, Any], job: Dict[str, Any], match_score: float, api_key: str, model_name: Optional[str] = None, base_url: Optional[str] = None) -> MatchAnalysis:
         prompt = f"""
@@ -124,20 +155,27 @@ Analyze why this job matches the candidate. Return ONLY valid JSON:
 }}
 """
         self._configure(api_key)
-        model = genai.GenerativeModel(model_name or "gemini-1.5-flash")
-        response = model.generate_content(prompt)
-        clean = self._clean_json(response.text)
-        try:
-            data = json.loads(clean)
-            return MatchAnalysis(**data)
-        except Exception:
-            return MatchAnalysis(
-                matchSummary=f"Strong fit with {match_score:.1f}% overall profile alignment.",
-                experienceSummary="Experience satisfies the baseline requirements for this role.",
-                locationSummary="Location and remote preference are compatible.",
-                matchedSkills=list(set(profile.get('skills', [])) & set(job.get('skills', []))),
-                missingSkills=[]
-            )
+        candidates = self._get_model_candidates(model_name)
+
+        for candidate in candidates:
+            try:
+                model = genai.GenerativeModel(candidate)
+                response = model.generate_content(prompt)
+                if response and response.text:
+                    clean = self._clean_json(response.text)
+                    data = json.loads(clean)
+                    return MatchAnalysis(**data)
+            except Exception as e:
+                logger.warning(f"Gemini explain_match candidate {candidate} failed: {e}")
+                continue
+
+        return MatchAnalysis(
+            matchSummary=f"Strong fit with {match_score:.1f}% overall profile alignment.",
+            experienceSummary="Experience satisfies the baseline requirements for this role.",
+            locationSummary="Location and remote preference are compatible.",
+            matchedSkills=list(set(profile.get('skills', [])) & set(job.get('skills', []))),
+            missingSkills=[]
+        )
 
     def generate_cover_letter(self, profile: Dict[str, Any], job: Dict[str, Any], api_key: str, model_name: Optional[str] = None, base_url: Optional[str] = None) -> str:
         prompt = f"""
@@ -159,6 +197,15 @@ Job Description & Requirements:
 Write the cover letter now:
 """
         self._configure(api_key)
-        model = genai.GenerativeModel(model_name or "gemini-1.5-flash")
-        response = model.generate_content(prompt)
-        return response.text.strip()
+        candidates = self._get_model_candidates(model_name)
+        for candidate in candidates:
+            try:
+                model = genai.GenerativeModel(candidate)
+                response = model.generate_content(prompt)
+                if response and response.text:
+                    return response.text.strip()
+            except Exception as e:
+                logger.warning(f"Gemini generate_cover_letter candidate {candidate} failed: {e}")
+                continue
+        return "Dear Hiring Team,\n\nI am excited to submit my application for this role. My background and experience align closely with your requirements.\n\nSincerely,\n" + str(profile.get('candidateName', 'Applicant'))
+

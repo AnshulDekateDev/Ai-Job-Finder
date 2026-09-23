@@ -35,7 +35,7 @@ export default function SettingsPage({ onOpenAuth }) {
   const [newAiProvider, setNewAiProvider] = useState({
     providerType: 'GEMINI',
     apiKey: '',
-    modelName: 'gemini-1.5-flash',
+    modelName: 'gemini-3.6-flash',
     baseUrl: '',
     isDefault: true,
   });
@@ -146,7 +146,7 @@ export default function SettingsPage({ onOpenAuth }) {
         apiKey: newAiProvider.apiKey.trim(),
         baseUrl: newAiProvider.baseUrl ? newAiProvider.baseUrl.trim() : ''
       });
-      setNewAiProvider({ providerType: 'GEMINI', apiKey: '', modelName: 'gemini-1.5-flash', baseUrl: '', isDefault: true });
+      setNewAiProvider({ providerType: 'GEMINI', apiKey: '', modelName: 'gemini-3.6-flash', baseUrl: '', isDefault: true });
       showNotification('AI Provider credential saved and encrypted with AES-256');
       loadAllSettings();
     } catch (err) {
@@ -544,7 +544,7 @@ export default function SettingsPage({ onOpenAuth }) {
                   value={newAiProvider.providerType}
                   onChange={(e) => {
                     const pt = e.target.value;
-                    let defaultM = 'gemini-1.5-flash';
+                    let defaultM = 'gemini-3.6-flash';
                     if (pt === 'OPENAI') defaultM = 'gpt-4o-mini';
                     if (pt === 'ANTHROPIC') defaultM = 'claude-3-5-sonnet-20241022';
                     setNewAiProvider({ ...newAiProvider, providerType: pt, modelName: defaultM });
@@ -586,9 +586,10 @@ export default function SettingsPage({ onOpenAuth }) {
                     value={newAiProvider.modelName}
                     onChange={(e) => setNewAiProvider({ ...newAiProvider, modelName: e.target.value })}
                   >
-                    <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast & Recommended)</option>
-                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                    <option value="gemini-3.6-flash">Gemini 3.6 Flash (Fast & Recommended)</option>
+                    <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite</option>
+                    <option value="gemini-flash-latest">Gemini Flash Latest</option>
+                    <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
                   </select>
                 ) : newAiProvider.providerType === 'OPENAI' ? (
                   <select
