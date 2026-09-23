@@ -25,12 +25,18 @@ export default function JobCard({
   const [expanded, setExpanded] = useState(false);
   const { job, jobMatch, isSaved, applicationStatus } = jobResult;
 
-  const parseList = (json) => {
-    try {
-      return JSON.parse(json || '[]');
-    } catch (e) {
-      return [];
+  const parseList = (val) => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') {
+      try {
+        const parsed = JSON.parse(val);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
     }
+    return [];
   };
 
   const matchedSkills = parseList(jobMatch.matchedSkillsJson);

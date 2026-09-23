@@ -24,8 +24,10 @@ async def lifespan(app: FastAPI):
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("Database schemas verified and initialized successfully.")
+        from app.db_migration import migrate_legacy_postgres_lobs
+        migrate_legacy_postgres_lobs(engine)
     except Exception as e:
-        logger.error(f"Error creating database tables: {e}")
+        logger.error(f"Error initializing database: {e}")
     yield
     # Shutdown
     logger.info("Shutting down AI Job Finder backend.")

@@ -96,11 +96,21 @@ export default function SettingsPage({ onOpenAuth }) {
       setJobSources(sourceRes.data);
 
       if (prefRes.data) {
+        const safeParseArray = (val) => {
+          if (!val) return [];
+          if (Array.isArray(val)) return val;
+          try {
+            const parsed = JSON.parse(val);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch (e) {
+            return [];
+          }
+        };
         setPreferences({
-          targetTitles: JSON.parse(prefRes.data.targetTitlesJson || '[]'),
-          targetLocations: JSON.parse(prefRes.data.targetLocationsJson || '[]'),
-          countries: JSON.parse(prefRes.data.countriesJson || '[]'),
-          workModes: JSON.parse(prefRes.data.workModesJson || '[]'),
+          targetTitles: safeParseArray(prefRes.data.targetTitlesJson),
+          targetLocations: safeParseArray(prefRes.data.targetLocationsJson),
+          countries: safeParseArray(prefRes.data.countriesJson),
+          workModes: safeParseArray(prefRes.data.workModesJson),
           experienceRange: prefRes.data.experienceRange || '0-2 years',
           minMatchPercentage: prefRes.data.minMatchPercentage || 70,
           maxResults: prefRes.data.maxResults || 30,

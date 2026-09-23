@@ -147,6 +147,18 @@ Ai-Job-Finder/
 
 ---
 
+### Entry #4 — 2026-09-23: FastAPI Rebuild & Resume Screen Fix
+- **Commits / Updates**:
+  - Rebuilt complete backend from Spring Boot Java to Python 3.12 + FastAPI under `backend_python/`.
+  - Replaced legacy PostgreSQL Hibernate LOB OID references with actual JSON data via self-healing startup migration (`app/db_migration.py`).
+  - Bulletproofed `parseList` across `ResumeUploadPage.jsx`, `JobCard.jsx`, `SettingsPage.jsx`, and `JobSearchPage.jsx`.
+  - Added React `ErrorBoundary` in `frontend/src/components/common/ErrorBoundary.jsx` and wrapped main view to prevent black screen crashes.
+- **Current State**:
+  - Python FastAPI backend running at `http://localhost:8000` with Supabase PostgreSQL connection.
+  - React Vite frontend running at `http://localhost:5173` with full Resume & Profile editing.
+
+---
+
 ### Entry #3 — 2026-09-23: Resume Parser & AI Status Banner
 - **Commits**: `272f4e7`, `21efa91`
 - **Work Completed**:

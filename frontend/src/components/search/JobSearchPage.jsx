@@ -66,10 +66,20 @@ export default function JobSearchPage({ onNavigateToSettings, onNavigateToResume
       setResumeName(resRes.data.resumeFilename);
 
       if (prefRes.data) {
-        if (prefRes.data.targetTitlesJson) setTitles(JSON.parse(prefRes.data.targetTitlesJson));
-        if (prefRes.data.targetLocationsJson) setLocations(JSON.parse(prefRes.data.targetLocationsJson));
-        if (prefRes.data.countriesJson) setCountries(JSON.parse(prefRes.data.countriesJson));
-        if (prefRes.data.workModesJson) setWorkModes(JSON.parse(prefRes.data.workModesJson));
+        const safeParseArray = (val, defaultVal = []) => {
+          if (!val) return defaultVal;
+          if (Array.isArray(val)) return val;
+          try {
+            const parsed = JSON.parse(val);
+            return Array.isArray(parsed) ? parsed : defaultVal;
+          } catch (e) {
+            return defaultVal;
+          }
+        };
+        if (prefRes.data.targetTitlesJson) setTitles(safeParseArray(prefRes.data.targetTitlesJson));
+        if (prefRes.data.targetLocationsJson) setLocations(safeParseArray(prefRes.data.targetLocationsJson));
+        if (prefRes.data.countriesJson) setCountries(safeParseArray(prefRes.data.countriesJson));
+        if (prefRes.data.workModesJson) setWorkModes(safeParseArray(prefRes.data.workModesJson));
         if (prefRes.data.experienceRange) setExperienceRange(prefRes.data.experienceRange);
         if (prefRes.data.minMatchPercentage) setMinMatchPercentage(prefRes.data.minMatchPercentage);
       }

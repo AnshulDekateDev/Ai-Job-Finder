@@ -113,7 +113,12 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
       }
       onClose();
     } catch (err) {
-      setError(err.response?.data?.error || err.response?.data?.message || 'Authentication failed. Please check your credentials.');
+      const errData = err.response?.data;
+      const errorMsg = errData?.error 
+        || (typeof errData?.detail === 'object' ? errData.detail?.error : errData?.detail) 
+        || errData?.message 
+        || 'Authentication failed. Please check your credentials.';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }

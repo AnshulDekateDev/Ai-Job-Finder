@@ -1,9 +1,10 @@
 import re
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
-from app.schemas.auth import RegisterRequest, LoginRequest, AuthResponse, UserResponse
+from app.schemas.auth import RegisterRequest, LoginRequest
 from app.security.auth import get_password_hash, verify_password, create_access_token, get_current_user
 from app.services.data_initializer import initialize_user_data
 
@@ -18,28 +19,28 @@ def register_user(req: RegisterRequest, db: Session = Depends(get_db)):
     full_name = (req.fullName or "").strip() or "Job Seeker"
 
     if not email or not password:
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"error": "Email and password are required."}
+            content={"error": "Email and password are required."}
         )
 
     if not re.match(EMAIL_REGEX, email):
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"error": "Please provide a valid email address (e.g. user@domain.com)."}
+            content={"error": "Please provide a valid email address (e.g. user@domain.com)."}
         )
 
     if len(password) < 6:
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"error": "Password must be at least 6 characters long."}
+            content={"error": "Password must be at least 6 characters long."}
         )
 
     existing = db.query(User).filter(User.email == email).first()
     if existing:
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"error": "Email is already registered. Please sign in instead."}
+            content={"error": "Email is already registered. Please sign in instead."}
         )
 
     # Create new user
@@ -72,9 +73,9 @@ def login_user(req: LoginRequest, db: Session = Depends(get_db)):
 
     user = db.query(User).filter(User.email == email).first()
     if not user or not verify_password(password, user.password_hash):
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"error": "Invalid email or password"}
+            content={"error": "Invalid email or password"}
         )
 
     token = create_access_token(user.id, user.email, user.full_name)

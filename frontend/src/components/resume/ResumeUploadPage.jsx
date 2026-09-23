@@ -104,25 +104,32 @@ export default function ResumeUploadPage() {
     }
   };
 
-  const parseList = (json) => {
-    try {
-      return JSON.parse(json || '[]');
-    } catch (e) {
-      return [];
+  const parseList = (val) => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') {
+      try {
+        const parsed = JSON.parse(val);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
     }
+    return [];
   };
 
   const updateSkillsList = (newList) => {
     setProfile({
       ...profile,
       skillsJson: JSON.stringify(newList),
+      skills_json: JSON.stringify(newList),
     });
   };
 
-  const skills = profile ? parseList(profile.skillsJson) : [];
-  const experiences = profile ? parseList(profile.experienceJson) : [];
-  const educations = profile ? parseList(profile.educationJson) : [];
-  const projects = profile ? parseList(profile.projectsJson) : [];
+  const skills = profile ? parseList(profile.skillsJson || profile.skills_json) : [];
+  const experiences = profile ? parseList(profile.experienceJson || profile.experience_json) : [];
+  const educations = profile ? parseList(profile.educationJson || profile.education_json) : [];
+  const projects = profile ? parseList(profile.projectsJson || profile.projects_json) : [];
 
   return (
     <div>

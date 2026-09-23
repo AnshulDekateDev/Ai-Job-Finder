@@ -8,6 +8,7 @@ import SavedJobsPage from './components/saved/SavedJobsPage';
 import ApplicationTrackerPage from './components/applications/ApplicationTrackerPage';
 import SettingsPage from './components/settings/SettingsPage';
 import AuthModal from './components/auth/AuthModal';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -56,28 +57,30 @@ export default function App() {
       />
 
       <main className="main-content">
-        {currentTab === 'search' && (
-          <JobSearchPage
-            onNavigateToSettings={() => setCurrentTab('settings')}
-            onNavigateToResume={() => setCurrentTab('resume')}
-          />
-        )}
+        <ErrorBoundary onReset={() => setCurrentTab('search')}>
+          {currentTab === 'search' && (
+            <JobSearchPage
+              onNavigateToSettings={() => setCurrentTab('settings')}
+              onNavigateToResume={() => setCurrentTab('resume')}
+            />
+          )}
 
-        {currentTab === 'resume' && (
-          <ResumeUploadPage onNavigateToSettings={() => setCurrentTab('settings')} />
-        )}
+          {currentTab === 'resume' && (
+            <ResumeUploadPage onNavigateToSettings={() => setCurrentTab('settings')} />
+          )}
 
-        {currentTab === 'saved' && (
-          <SavedJobsPage onNavigateToSearch={() => setCurrentTab('search')} />
-        )}
+          {currentTab === 'saved' && (
+            <SavedJobsPage onNavigateToSearch={() => setCurrentTab('search')} />
+          )}
 
-        {currentTab === 'applications' && (
-          <ApplicationTrackerPage />
-        )}
+          {currentTab === 'applications' && (
+            <ApplicationTrackerPage />
+          )}
 
-        {currentTab === 'settings' && (
-          <SettingsPage onOpenAuth={() => setIsAuthModalOpen(true)} />
-        )}
+          {currentTab === 'settings' && (
+            <SettingsPage onOpenAuth={() => setIsAuthModalOpen(true)} />
+          )}
+        </ErrorBoundary>
       </main>
 
       <AuthModal
