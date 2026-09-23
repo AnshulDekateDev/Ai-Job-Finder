@@ -1,0 +1,30 @@
+# Build & Dependency Artifacts
+**/target/
+**/node_modules/
+**/dist/
+**/build/
+
+# Local Database & Storage
+**/data/
+*.db
+*.mv.db
+*.trace.db
+
+# IDE & Editor files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+.DS_Store
+Thumbs.db
+
+# Environment & Log files
+*.log
+*.env
+*.env.local
+.system_generated/
+scratch/
