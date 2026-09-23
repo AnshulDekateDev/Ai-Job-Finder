@@ -56,7 +56,7 @@ export default function App() {
         )}
 
         {currentTab === 'settings' && (
-          <SettingsPage />
+          <SettingsPage onOpenAuth={() => setIsAuthModalOpen(true)} />
         )}
       </main>
 

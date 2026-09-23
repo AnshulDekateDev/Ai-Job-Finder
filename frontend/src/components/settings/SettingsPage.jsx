@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { 
   integrationApi, 
   jobSourceApi, 
@@ -19,10 +20,12 @@ import {
   ExternalLink,
   Lock,
   Zap,
-  Info
+  Info,
+  User as UserIcon
 } from 'lucide-react';
 
-export default function SettingsPage() {
+export default function SettingsPage({ onOpenAuth }) {
+  const { user } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState('ai');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
@@ -118,17 +121,35 @@ export default function SettingsPage() {
   // AI Handler
   const handleSaveAiProvider = async (e) => {
     e.preventDefault();
+    if (!user) {
+      showNotification('Please sign in or register to save your API keys', 'error');
+      if (onOpenAuth) onOpenAuth();
+      return;
+    }
+    if (!newAiProvider.apiKey || !newAiProvider.apiKey.trim()) {
+      showNotification('Please enter a valid API Key', 'error');
+      return;
+    }
     try {
-      await integrationApi.saveAiProvider(newAiProvider);
+      await integrationApi.saveAiProvider({
+        ...newAiProvider,
+        apiKey: newAiProvider.apiKey.trim(),
+        baseUrl: newAiProvider.baseUrl ? newAiProvider.baseUrl.trim() : ''
+      });
       setNewAiProvider({ providerType: 'GEMINI', apiKey: '', modelName: 'gemini-1.5-flash', baseUrl: '', isDefault: true });
       showNotification('AI Provider credential saved and encrypted with AES-256');
       loadAllSettings();
     } catch (err) {
-      showNotification(err.response?.data?.error || 'Failed to save AI provider', 'error');
+      showNotification(err.response?.data?.error || err.response?.data?.message || 'Failed to save AI provider', 'error');
     }
   };
 
   const handleTestAi = async (id) => {
+    if (!user) {
+      showNotification('Please sign in to test credentials', 'error');
+      if (onOpenAuth) onOpenAuth();
+      return;
+    }
     setTestingAiId(id);
     try {
       const res = await integrationApi.testAiProvider(id);
@@ -142,6 +163,7 @@ export default function SettingsPage() {
   };
 
   const handleDeleteAi = async (id) => {
+    if (!user) return;
     if (!window.confirm('Delete this AI provider credential?')) return;
     try {
       await integrationApi.deleteAiProvider(id);
@@ -155,17 +177,35 @@ export default function SettingsPage() {
   // Scraper Handler
   const handleSaveScraper = async (e) => {
     e.preventDefault();
+    if (!user) {
+      showNotification('Please sign in or register to save your Scraper API keys', 'error');
+      if (onOpenAuth) onOpenAuth();
+      return;
+    }
+    if (!newScraper.apiKey || !newScraper.apiKey.trim()) {
+      showNotification('Please enter a valid Scraper API key', 'error');
+      return;
+    }
     try {
-      await integrationApi.saveScraper(newScraper);
+      await integrationApi.saveScraper({
+        ...newScraper,
+        apiKey: newScraper.apiKey.trim(),
+        baseUrl: newScraper.baseUrl ? newScraper.baseUrl.trim() : ''
+      });
       setNewScraper({ providerType: 'SCRAPER_API', apiKey: '', baseUrl: '', isDefault: true });
       showNotification('Scraper Provider credential saved and encrypted');
       loadAllSettings();
     } catch (err) {
-      showNotification(err.response?.data?.error || 'Failed to save Scraper provider', 'error');
+      showNotification(err.response?.data?.error || err.response?.data?.message || 'Failed to save Scraper provider', 'error');
     }
   };
 
   const handleTestScraper = async (id) => {
+    if (!user) {
+      showNotification('Please sign in to test scraper', 'error');
+      if (onOpenAuth) onOpenAuth();
+      return;
+    }
     setTestingScraperId(id);
     try {
       const res = await integrationApi.testScraper(id);
@@ -179,6 +219,7 @@ export default function SettingsPage() {
   };
 
   const handleDeleteScraper = async (id) => {
+    if (!user) return;
     if (!window.confirm('Delete this Scraper credential?')) return;
     try {
       await integrationApi.deleteScraper(id);
@@ -191,6 +232,11 @@ export default function SettingsPage() {
 
   // Job Source Handlers
   const handleToggleSource = async (id) => {
+    if (!user) {
+      showNotification('Please sign in to toggle job sources', 'error');
+      if (onOpenAuth) onOpenAuth();
+      return;
+    }
     try {
       await jobSourceApi.toggleSource(id);
       loadAllSettings();
@@ -200,6 +246,11 @@ export default function SettingsPage() {
   };
 
   const handleTestSource = async (id) => {
+    if (!user) {
+      showNotification('Please sign in to test job source', 'error');
+      if (onOpenAuth) onOpenAuth();
+      return;
+    }
     setTestingSourceId(id);
     try {
       const res = await jobSourceApi.testSource(id);
@@ -214,18 +265,29 @@ export default function SettingsPage() {
 
   const handleSaveCustomSource = async (e) => {
     e.preventDefault();
+    if (!user) {
+      showNotification('Please sign in or register to add custom job sources', 'error');
+      if (onOpenAuth) onOpenAuth();
+      return;
+    }
     try {
-      await jobSourceApi.saveSource(customSource);
+      await jobSourceApi.saveSource({
+        ...customSource,
+        name: customSource.name.trim(),
+        baseUrl: customSource.baseUrl.trim(),
+        searchUrlPattern: customSource.searchUrlPattern ? customSource.searchUrlPattern.trim() : ''
+      });
       setIsAddSourceModalOpen(false);
       setCustomSource({ name: '', code: '', baseUrl: '', searchUrlPattern: '', accessMethod: 'DIRECT_PUBLIC_FEED', scraperProviderRef: 'SCRAPER_API', isEnabled: true });
       showNotification('Custom job source registered');
       loadAllSettings();
     } catch (err) {
-      showNotification(err.response?.data?.error || 'Failed to add custom source', 'error');
+      showNotification(err.response?.data?.error || err.response?.data?.message || 'Failed to add custom source', 'error');
     }
   };
 
   const handleDeleteSource = async (id) => {
+    if (!user) return;
     if (!window.confirm('Remove this custom source?')) return;
     try {
       await jobSourceApi.deleteSource(id);
@@ -238,6 +300,11 @@ export default function SettingsPage() {
 
   // Preferences Handler
   const handleSavePreferences = async () => {
+    if (!user) {
+      showNotification('Please sign in to save search preferences', 'error');
+      if (onOpenAuth) onOpenAuth();
+      return;
+    }
     try {
       await preferenceApi.updatePreferences({
         targetTitlesJson: JSON.stringify(preferences.targetTitles),
@@ -250,7 +317,7 @@ export default function SettingsPage() {
       });
       showNotification('Search preferences saved');
     } catch (err) {
-      showNotification('Failed to save search preferences', 'error');
+      showNotification(err.response?.data?.error || 'Failed to save search preferences', 'error');
     }
   };
 
@@ -292,6 +359,40 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
+
+      {/* Guest Notice Banner if not logged in */}
+      {!user && (
+        <div style={{
+          marginBottom: '24px',
+          padding: '16px 20px',
+          borderRadius: '12px',
+          background: 'rgba(99, 102, 241, 0.1)',
+          border: '1px solid var(--border-active)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px',
+          flexWrap: 'wrap'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <UserIcon size={22} color="var(--accent-primary)" />
+            <div>
+              <p style={{ fontWeight: 700, fontSize: '0.95rem' }}>Sign In Required to Save Keys & Custom Sources</p>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                Please sign in or register to encrypt and save your Gemini API keys, scraper proxies, and custom sources into your cloud database.
+              </p>
+            </div>
+          </div>
+          <button 
+            type="button" 
+            onClick={onOpenAuth} 
+            className="btn btn-primary" 
+            style={{ padding: '8px 20px', fontSize: '0.875rem' }}
+          >
+            Sign In / Register
+          </button>
+        </div>
+      )}
 
       {/* Sub-Tabs Nav */}
       <div style={{
@@ -619,6 +720,7 @@ export default function SettingsPage() {
                   value={newScraper.providerType}
                   onChange={(e) => setNewScraper({ ...newScraper, providerType: e.target.value })}
                 >
+                  <option value="SCRAPE_DO">Scrap.do / Scrape.do (High Success Web Scraping)</option>
                   <option value="SCRAPER_API">ScraperAPI (Recommended)</option>
                   <option value="BRIGHT_DATA">Bright Data</option>
                   <option value="APIFY">Apify</option>
@@ -806,6 +908,24 @@ export default function SettingsPage() {
                         <option value="OFFICIAL_API">Authorized Official API</option>
                       </select>
                     </div>
+
+                    {customSource.accessMethod === 'SCRAPER_PROVIDER' && (
+                      <div className="form-group">
+                        <label className="form-label">
+                          <span>Target Scraper Provider</span>
+                        </label>
+                        <select
+                          className="form-select"
+                          value={customSource.scraperProviderRef}
+                          onChange={(e) => setCustomSource({ ...customSource, scraperProviderRef: e.target.value })}
+                        >
+                          <option value="SCRAPE_DO">Scrap.do / Scrape.do</option>
+                          <option value="SCRAPER_API">ScraperAPI</option>
+                          <option value="BRIGHT_DATA">Bright Data</option>
+                          <option value="APIFY">Apify</option>
+                        </select>
+                      </div>
+                    )}
                   </div>
 
                   <div className="modal-footer">
