@@ -54,6 +54,11 @@ class ResumeParserService:
 
         # 2. Parse via active LLM Context
         llm_ctx = llm_factory.resolve_active_context(user, db)
+        if llm_ctx.provider_type == "MOCK_DEMO":
+            raise ValueError(
+                "No active AI API key configured! Please configure your Google Gemini (Free) or OpenAI API key in Settings & Integrations to parse resumes with AI."
+            )
+
         parsed = llm_ctx.provider.parse_resume(
             raw_text,
             api_key=llm_ctx.decrypted_api_key,
@@ -76,12 +81,57 @@ class ResumeParserService:
         profile.highest_degree = parsed.highestDegree or "Bachelor's Degree"
         profile.summary = parsed.summary
 
-        profile.skills_json = json.dumps(parsed.skills or ["Python", "FastAPI", "REST APIs"])
+        profile.skills_json = json.dumps(parsed.skills or [])
         profile.experience_json = json.dumps(parsed.experience or [])
         profile.education_json = json.dumps(parsed.education or [])
         profile.projects_json = json.dumps(parsed.projects or [])
-        profile.preferred_roles_json = json.dumps(parsed.preferredRoles or ["Software Engineer", "Backend Developer"])
-        profile.locations_json = json.dumps(parsed.locations or ["India", "Remote Worldwide"])
+        profile.preferred_roles_json = json.dumps(parsed.preferredRoles or ["Software Engineer"])
+        profile.locations_json = json.dumps(parsed.locations or ["India"])
+        profile.remote_preference_json = json.dumps(parsed.remotePreference or ["REMOTE", "HYBRID"])
+        profile.updated_at = datetime.utcnow()
+
+        db.commit()
+        db.refresh(profile)
+        return profile
+
+    def reparse_resume(self, user: User, db: Session) -> CandidateProfile:
+        resume = db.query(Resume).filter(Resume.user_id == user.id).first()
+        if not resume or not resume.raw_text:
+            raise ValueError("No uploaded resume document found. Please upload a resume first.")
+
+        llm_ctx = llm_factory.resolve_active_context(user, db)
+        if llm_ctx.provider_type == "MOCK_DEMO":
+            raise ValueError(
+                "No active AI API key configured! Please configure your Google Gemini (Free) or OpenAI API key in Settings & Integrations to parse resumes with AI."
+            )
+
+        parsed = llm_ctx.provider.parse_resume(
+            resume.raw_text,
+            api_key=llm_ctx.decrypted_api_key,
+            model_name=llm_ctx.model_name,
+            base_url=llm_ctx.base_url
+        )
+
+        profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == user.id).first()
+        if not profile:
+            profile = CandidateProfile(user_id=user.id)
+            db.add(profile)
+
+        profile.resume_id = resume.id
+        profile.candidate_name = parsed.candidateName or user.full_name
+        profile.email = parsed.email or user.email
+        profile.phone = parsed.phone
+        profile.location = parsed.location or "India"
+        profile.years_of_experience = parsed.yearsOfExperience or 1.0
+        profile.highest_degree = parsed.highestDegree or "Bachelor's Degree"
+        profile.summary = parsed.summary
+
+        profile.skills_json = json.dumps(parsed.skills or [])
+        profile.experience_json = json.dumps(parsed.experience or [])
+        profile.education_json = json.dumps(parsed.education or [])
+        profile.projects_json = json.dumps(parsed.projects or [])
+        profile.preferred_roles_json = json.dumps(parsed.preferredRoles or ["Software Engineer"])
+        profile.locations_json = json.dumps(parsed.locations or ["India"])
         profile.remote_preference_json = json.dumps(parsed.remotePreference or ["REMOTE", "HYBRID"])
         profile.updated_at = datetime.utcnow()
 

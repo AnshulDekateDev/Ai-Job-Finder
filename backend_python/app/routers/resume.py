@@ -43,6 +43,23 @@ async def upload_resume(
             detail={"error": str(e)}
         )
 
+@router.post("/reparse")
+def reparse_resume(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        profile = resume_parser_service.reparse_resume(current_user, db)
+        return {
+            "message": "Resume successfully re-parsed using live AI LLM!",
+            "profile": CandidateProfileSchema.model_validate(profile)
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": str(e)}
+        )
+
 @router.get("/profile")
 def get_candidate_profile(
     current_user: User = Depends(get_current_user),

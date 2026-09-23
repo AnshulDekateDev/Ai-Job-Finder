@@ -54,6 +54,7 @@ export const resumeApi = {
   upload: (formData) => api.post('/resume/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+  reparse: () => api.post('/resume/reparse'),
   getProfile: () => api.get('/resume/profile'),
   updateProfile: (data) => api.put('/resume/profile', data),
 };

@@ -22,11 +22,12 @@ import {
   Settings
 } from 'lucide-react';
 
-export default function ResumeUploadPage() {
+export default function ResumeUploadPage({ onNavigateToSettings }) {
   const [profile, setProfile] = useState(null);
   const [hasResume, setHasResume] = useState(false);
   const [resumeFilename, setResumeFilename] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [reparsing, setReparsing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
   const [newSkillInput, setNewSkillInput] = useState('');
@@ -65,9 +66,36 @@ export default function ResumeUploadPage() {
     setTimeout(() => setMessage(null), 4000);
   };
 
+  const handleReparse = async () => {
+    if (!aiProvider) {
+      showNotification('Please configure your Google Gemini or OpenAI API key first in Settings & Integrations to parse with AI.', 'error');
+      if (onNavigateToSettings) onNavigateToSettings();
+      return;
+    }
+    setReparsing(true);
+    try {
+      const res = await resumeApi.reparse();
+      setProfile(res.data.profile);
+      showNotification(`Resume parsed via live ${aiProvider.providerType} AI model!`);
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to re-parse resume with AI';
+      showNotification(errorMsg, 'error');
+    } finally {
+      setReparsing(false);
+    }
+  };
+
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    if (!aiProvider) {
+      showNotification('Please configure your Google Gemini or OpenAI API key in Settings & Integrations first to parse with AI.', 'error');
+      if (onNavigateToSettings) {
+        setTimeout(() => onNavigateToSettings(), 1200);
+      }
+      return;
+    }
 
     const formData = new FormData();
     formData.append('file', file);
@@ -78,7 +106,7 @@ export default function ResumeUploadPage() {
       setProfile(res.data.profile);
       setHasResume(true);
       setResumeFilename(file.name);
-      showNotification('Resume parsed and structured candidate profile created via AI!');
+      showNotification(`Resume parsed via live ${aiProvider.providerType} AI model!`);
     } catch (err) {
       if (err.response?.status === 401) {
         showNotification('Authentication session expired. Please sign in to upload your resume.', 'error');
@@ -170,43 +198,55 @@ export default function ResumeUploadPage() {
         justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: '12px',
-        borderLeft: aiProvider ? '4px solid #10b981' : '4px solid #f59e0b',
-        background: aiProvider ? 'rgba(16, 185, 129, 0.05)' : 'rgba(245, 158, 11, 0.05)'
+        borderLeft: aiProvider ? '4px solid #10b981' : '4px solid #ef4444',
+        background: aiProvider ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{
             width: '36px',
             height: '36px',
             borderRadius: '10px',
-            background: aiProvider ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+            background: aiProvider ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: aiProvider ? '#10b981' : '#f59e0b'
+            color: aiProvider ? '#10b981' : '#ef4444'
           }}>
             <Sparkles size={20} />
           </div>
           <div>
             <div style={{ fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>AI Parsing Engine:</span>
+              <span>Live AI LLM Model:</span>
               <span style={{
                 fontSize: '0.75rem',
                 padding: '2px 8px',
                 borderRadius: '6px',
-                background: aiProvider ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
-                color: aiProvider ? '#10b981' : '#f59e0b',
+                background: aiProvider ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                color: aiProvider ? '#10b981' : '#ef4444',
                 fontWeight: 700
               }}>
-                {aiProvider ? `${aiProvider.providerType} (${aiProvider.modelName || 'gemini-1.5-flash'})` : 'OFFLINE NLP PARSER (FALLBACK)'}
+                {aiProvider ? `${aiProvider.providerType} (${aiProvider.modelName || 'gemini-1.5-flash'})` : 'NO AI KEY CONFIGURED'}
               </span>
             </div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
               {aiProvider 
-                ? 'Your resume text will be processed via live Google Gemini / OpenAI LLM to extract accurate skills, experience, projects, and education.' 
-                : 'Configure your Google Gemini API key in Settings & Integrations to unlock deep neural resume parsing, match reasoning, and custom cover letters.'}
+                ? `Active ${aiProvider.providerType} LLM is ready to extract deep skills, experience, and projects from your resume.` 
+                : 'Please configure your Google Gemini (Free) or OpenAI API key in Settings & Integrations to parse resumes using live AI.'}
             </div>
           </div>
         </div>
+
+        {!aiProvider && onNavigateToSettings && (
+          <button
+            type="button"
+            onClick={onNavigateToSettings}
+            className="btn btn-primary"
+            style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Settings size={15} />
+            <span>Connect AI Key in Settings</span>
+          </button>
+        )}
       </div>
 
       <div className="grid-2" style={{ alignItems: 'start' }}>
@@ -271,16 +311,30 @@ export default function ResumeUploadPage() {
               borderRadius: '12px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between'
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '10px'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <FileText size={18} color="var(--accent-primary)" />
                 <div>
                   <p style={{ fontWeight: 600, fontSize: '0.9rem' }}>{resumeFilename || 'Uploaded Resume'}</p>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--success)' }}>✓ AI Parsed & Verified</p>
+                  <p style={{ fontSize: '0.75rem', color: aiProvider ? 'var(--success)' : 'var(--warning)' }}>
+                    {aiProvider ? '✓ Ready for AI Parsing' : '⚠️ Connect AI Key in Settings'}
+                  </p>
                 </div>
               </div>
-              <span className="badge badge-ready">Active</span>
+              <button
+                type="button"
+                onClick={handleReparse}
+                disabled={reparsing}
+                className="btn btn-secondary"
+                style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                title="Re-run AI extraction on this uploaded resume using your connected AI model"
+              >
+                <Sparkles size={14} className={reparsing ? "spin" : ""} />
+                <span>{reparsing ? 'Parsing with AI...' : 'Re-parse with AI'}</span>
+              </button>
             </div>
           )}
 
