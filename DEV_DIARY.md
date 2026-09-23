@@ -147,6 +147,19 @@ Ai-Job-Finder/
 
 ---
 
+### Entry #5 — 2026-09-24: Gemini 3.6 Upgrade & Live AI Resume Parser
+- **Commits / Updates**:
+  - Resolved `400 Bad Request` during resume upload caused by Google's deprecation of `gemini-1.5-flash` on API v1beta.
+  - Upgraded model resolution in `gemini.py` to auto-fallback across active models: `gemini-3.6-flash` (recommended), `gemini-3.5-flash-lite`, and `gemini-flash-latest`.
+  - Updated AI Settings dropdown with modern Gemini model versions.
+  - Enforced real AI parsing requirement (disabled static mock fallbacks when an AI key is expected).
+  - Added `POST /api/resume/reparse` endpoint and **"✨ Re-parse with AI"** button on the UI.
+  - Verified live extraction with user's Gemini key on `Bhavesh_Wadhwani_Resume.pdf` (extracted Bhavesh Wadhwani, 4.5 yrs exp, 33 skills, 4 roles).
+- **Current State**:
+  - Live AI resume parsing working seamlessly with Google Gemini API.
+
+---
+
 ### Entry #4 — 2026-09-23: FastAPI Rebuild & Resume Screen Fix
 - **Commits / Updates**:
   - Rebuilt complete backend from Spring Boot Java to Python 3.12 + FastAPI under `backend_python/`.
