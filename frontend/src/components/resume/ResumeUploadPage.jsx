@@ -60,9 +60,13 @@ export default function ResumeUploadPage() {
       setProfile(res.data.profile);
       setHasResume(true);
       setResumeFilename(file.name);
-      showNotification('Resume parsed and structured candidate profile created via AI!');
     } catch (err) {
-      showNotification(err.response?.data?.error || 'Failed to parse resume file', 'error');
+      if (err.response?.status === 401) {
+        showNotification('Authentication session expired. Please sign in to upload your resume.', 'error');
+      } else {
+        const errorMsg = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to parse resume file';
+        showNotification(errorMsg, 'error');
+      }
     } finally {
       setUploading(false);
     }
