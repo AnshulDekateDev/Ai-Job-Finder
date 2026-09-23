@@ -14,9 +14,9 @@ import {
   ArrowRight
 } from 'lucide-react';
 
-export default function AuthModal({ isOpen, onClose }) {
+export default function AuthModal({ isOpen, onClose, initialIsRegister = false }) {
   const { login, register } = useAuth();
-  const [isRegister, setIsRegister] = useState(false);
+  const [isRegister, setIsRegister] = useState(initialIsRegister);
   
   // Form fields
   const [email, setEmail] = useState('');
@@ -30,6 +30,14 @@ export default function AuthModal({ isOpen, onClose }) {
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setIsRegister(initialIsRegister);
+      setError('');
+      setFieldErrors({});
+    }
+  }, [isOpen, initialIsRegister]);
 
   if (!isOpen) return null;
 

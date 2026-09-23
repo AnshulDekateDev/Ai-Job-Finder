@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from './context/AuthContext';
+import LandingPage from './components/landing/LandingPage';
 import Navbar from './components/Navbar';
 import JobSearchPage from './components/search/JobSearchPage';
 import ResumeUploadPage from './components/resume/ResumeUploadPage';
@@ -12,26 +13,45 @@ export default function App() {
   const { user, loading } = useAuth();
   const [currentTab, setCurrentTab] = useState('search');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [initialIsRegister, setInitialIsRegister] = useState(false);
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)' }}>
         <p style={{ color: 'var(--text-secondary)' }}>Loading AI Job Finder...</p>
       </div>
     );
   }
 
+  // If user is not authenticated, show Landing Page first
+  if (!user) {
+    return (
+      <>
+        <LandingPage
+          onGetStarted={() => {
+            setInitialIsRegister(true);
+            setIsAuthModalOpen(true);
+          }}
+          onSignIn={() => {
+            setInitialIsRegister(false);
+            setIsAuthModalOpen(true);
+          }}
+        />
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          initialIsRegister={initialIsRegister}
+          onClose={() => setIsAuthModalOpen(false)}
+        />
+      </>
+    );
+  }
+
+  // Authenticated Main Service
   return (
     <div className="app-container">
       <Navbar
         currentTab={currentTab}
-        onSelectTab={(tab) => {
-          if (!user && tab !== 'search') {
-            setIsAuthModalOpen(true);
-          } else {
-            setCurrentTab(tab);
-          }
-        }}
+        onSelectTab={(tab) => setCurrentTab(tab)}
         onOpenAuth={() => setIsAuthModalOpen(true)}
       />
 
@@ -62,6 +82,7 @@ export default function App() {
 
       <AuthModal
         isOpen={isAuthModalOpen}
+        initialIsRegister={initialIsRegister}
         onClose={() => setIsAuthModalOpen(false)}
       />
     </div>
