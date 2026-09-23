@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { resumeApi } from '../../api';
+import { resumeApi, integrationApi } from '../../api';
 import { 
   FileText, 
   UploadCloud, 
@@ -17,7 +17,9 @@ import {
   FolderGit2,
   Phone,
   Mail,
-  Award
+  Award,
+  Cpu,
+  Settings
 } from 'lucide-react';
 
 export default function ResumeUploadPage() {
@@ -28,10 +30,22 @@ export default function ResumeUploadPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
   const [newSkillInput, setNewSkillInput] = useState('');
+  const [aiProvider, setAiProvider] = useState(null);
 
   useEffect(() => {
     loadProfile();
+    loadAiProvider();
   }, []);
+
+  const loadAiProvider = async () => {
+    try {
+      const res = await integrationApi.getAiProviders();
+      const active = (res.data || []).find(p => p.isActive);
+      setAiProvider(active || null);
+    } catch (err) {
+      console.error('Failed to load AI providers:', err);
+    }
+  };
 
   const loadProfile = async () => {
     try {
@@ -138,6 +152,54 @@ export default function ResumeUploadPage() {
             <span>{message.text}</span>
           </div>
         )}
+      </div>
+
+      {/* AI Parsing Engine Status Card */}
+      <div className="glass-card" style={{
+        padding: '14px 20px',
+        marginBottom: '20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '12px',
+        borderLeft: aiProvider ? '4px solid #10b981' : '4px solid #f59e0b',
+        background: aiProvider ? 'rgba(16, 185, 129, 0.05)' : 'rgba(245, 158, 11, 0.05)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            width: '36px',
+            height: '36px',
+            borderRadius: '10px',
+            background: aiProvider ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: aiProvider ? '#10b981' : '#f59e0b'
+          }}>
+            <Sparkles size={20} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>AI Parsing Engine:</span>
+              <span style={{
+                fontSize: '0.75rem',
+                padding: '2px 8px',
+                borderRadius: '6px',
+                background: aiProvider ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                color: aiProvider ? '#10b981' : '#f59e0b',
+                fontWeight: 700
+              }}>
+                {aiProvider ? `${aiProvider.providerType} (${aiProvider.modelName || 'gemini-1.5-flash'})` : 'OFFLINE NLP PARSER (FALLBACK)'}
+              </span>
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+              {aiProvider 
+                ? 'Your resume text will be processed via live Google Gemini / OpenAI LLM to extract accurate skills, experience, projects, and education.' 
+                : 'Configure your Google Gemini API key in Settings & Integrations to unlock deep neural resume parsing, match reasoning, and custom cover letters.'}
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid-2" style={{ alignItems: 'start' }}>
