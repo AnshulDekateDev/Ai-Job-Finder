@@ -48,11 +48,20 @@ public class AuthController {
         String fullName = signUpRequest.get("fullName");
 
         if (email == null || email.trim().isEmpty() || password == null || password.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(CollectionsMap("error", "Email and password are required"));
+            return ResponseEntity.badRequest().body(CollectionsMap("error", "Email and password are required."));
         }
 
-        if (userRepository.existsByEmail(email.trim().toLowerCase())) {
-            return ResponseEntity.badRequest().body(CollectionsMap("error", "Email is already registered. Please sign in."));
+        String cleanedEmail = email.trim().toLowerCase();
+        if (!cleanedEmail.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+            return ResponseEntity.badRequest().body(CollectionsMap("error", "Please provide a valid email address (e.g. user@domain.com)."));
+        }
+
+        if (password.length() < 6) {
+            return ResponseEntity.badRequest().body(CollectionsMap("error", "Password must be at least 6 characters long."));
+        }
+
+        if (userRepository.existsByEmail(cleanedEmail)) {
+            return ResponseEntity.badRequest().body(CollectionsMap("error", "Email is already registered. Please sign in instead."));
         }
 
         User user = new User(
