@@ -32,35 +32,35 @@ public class CandidateProfile {
 
     // JSON stored fields
     @Lob
-    @Column(columnDefinition = "CLOB")
+    @Column(columnDefinition = "TEXT")
     private String skillsJson = "[]"; // e.g. ["Java", "Spring Boot", "REST API", "PostgreSQL", "Docker"]
 
     @Lob
-    @Column(columnDefinition = "CLOB")
+    @Column(columnDefinition = "TEXT")
     private String experienceJson = "[]"; // [{title, company, duration, description, skills}]
 
     @Lob
-    @Column(columnDefinition = "CLOB")
+    @Column(columnDefinition = "TEXT")
     private String educationJson = "[]"; // [{degree, institution, year}]
 
     @Lob
-    @Column(columnDefinition = "CLOB")
+    @Column(columnDefinition = "TEXT")
     private String projectsJson = "[]"; // [{name, description, technologies}]
 
     @Lob
-    @Column(columnDefinition = "CLOB")
+    @Column(columnDefinition = "TEXT")
     private String preferredRolesJson = "[]"; // ["Java Developer", "Backend Developer"]
 
     @Lob
-    @Column(columnDefinition = "CLOB")
+    @Column(columnDefinition = "TEXT")
     private String locationsJson = "[]"; // ["India", "Remote India", "Remote Worldwide"]
 
     @Lob
-    @Column(columnDefinition = "CLOB")
+    @Column(columnDefinition = "TEXT")
     private String remotePreferenceJson = "[]"; // ["REMOTE", "HYBRID", "ON_SITE"]
 
     @Lob
-    @Column(columnDefinition = "CLOB")
+    @Column(columnDefinition = "TEXT")
     private String summary;
 
     private LocalDateTime updatedAt = LocalDateTime.now();

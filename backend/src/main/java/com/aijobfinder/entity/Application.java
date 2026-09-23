@@ -30,7 +30,7 @@ public class Application {
     private String originalApplicationUrl;
 
     @Lob
-    @Column(columnDefinition = "CLOB")
+    @Column(columnDefinition = "TEXT")
     private String notes;
 
     private LocalDateTime appliedAt;

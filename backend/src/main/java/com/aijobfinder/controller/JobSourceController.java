@@ -23,20 +23,28 @@ public class JobSourceController {
     private final JobSourceConfigRepository jobSourceConfigRepository;
     private final JobSourceRegistry jobSourceRegistry;
     private final ScraperProviderFactory scraperProviderFactory;
+    private final com.aijobfinder.service.DataInitializer dataInitializer;
 
     public JobSourceController(
             JobSourceConfigRepository jobSourceConfigRepository,
             JobSourceRegistry jobSourceRegistry,
-            ScraperProviderFactory scraperProviderFactory
+            ScraperProviderFactory scraperProviderFactory,
+            com.aijobfinder.service.DataInitializer dataInitializer
     ) {
         this.jobSourceConfigRepository = jobSourceConfigRepository;
         this.jobSourceRegistry = jobSourceRegistry;
         this.scraperProviderFactory = scraperProviderFactory;
+        this.dataInitializer = dataInitializer;
     }
 
     @GetMapping
     public ResponseEntity<List<JobSourceConfig>> getJobSources(@AuthenticationPrincipal UserPrincipal userPrincipal) {
-        return ResponseEntity.ok(jobSourceConfigRepository.findByUser(userPrincipal.getUser()));
+        List<JobSourceConfig> list = jobSourceConfigRepository.findByUser(userPrincipal.getUser());
+        if (list.isEmpty()) {
+            dataInitializer.initializeUserData(userPrincipal.getUser());
+            list = jobSourceConfigRepository.findByUser(userPrincipal.getUser());
+        }
+        return ResponseEntity.ok(list);
     }
 
     @PostMapping

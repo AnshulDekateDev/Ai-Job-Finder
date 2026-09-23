@@ -23,11 +23,11 @@ public class CoverLetter {
     private Job job;
 
     @Lob
-    @Column(columnDefinition = "CLOB", nullable = false)
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String generatedContent;
 
     @Lob
-    @Column(columnDefinition = "CLOB")
+    @Column(columnDefinition = "TEXT")
     private String userEditedContent;
 
     private String modelUsed;

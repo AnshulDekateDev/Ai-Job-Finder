@@ -33,6 +33,7 @@ public class JobSearchService {
     private final JobSourceRegistry jobSourceRegistry;
     private final MatchingEngine matchingEngine;
     private final ObjectMapper objectMapper;
+    private final DataInitializer dataInitializer;
 
     public JobSearchService(
             JobSourceConfigRepository jobSourceConfigRepository,
@@ -45,7 +46,8 @@ public class JobSearchService {
             ScraperProviderFactory scraperProviderFactory,
             JobSourceRegistry jobSourceRegistry,
             MatchingEngine matchingEngine,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            DataInitializer dataInitializer
     ) {
         this.jobSourceConfigRepository = jobSourceConfigRepository;
         this.candidateProfileRepository = candidateProfileRepository;
@@ -58,6 +60,7 @@ public class JobSearchService {
         this.jobSourceRegistry = jobSourceRegistry;
         this.matchingEngine = matchingEngine;
         this.objectMapper = objectMapper;
+        this.dataInitializer = dataInitializer;
     }
 
     @Transactional
@@ -75,7 +78,8 @@ public class JobSearchService {
         // 4. Load enabled Job Sources
         List<JobSourceConfig> userSources = jobSourceConfigRepository.findByUserAndIsEnabledTrue(user);
         if (userSources.isEmpty()) {
-            userSources = jobSourceConfigRepository.findByUser(user);
+            dataInitializer.initializeUserData(user);
+            userSources = jobSourceConfigRepository.findByUserAndIsEnabledTrue(user);
         }
 
         // Filter by query selected sources if specified

@@ -19,19 +19,19 @@ public class SearchPreference {
     private User user;
 
     @Lob
-    @Column(columnDefinition = "CLOB")
+    @Column(columnDefinition = "TEXT")
     private String targetTitlesJson = "[\"Java Developer\", \"Backend Developer\", \"Spring Boot Developer\"]";
 
     @Lob
-    @Column(columnDefinition = "CLOB")
+    @Column(columnDefinition = "TEXT")
     private String targetLocationsJson = "[\"India\", \"Remote India\", \"Remote Worldwide\"]";
 
     @Lob
-    @Column(columnDefinition = "CLOB")
+    @Column(columnDefinition = "TEXT")
     private String countriesJson = "[\"India\", \"United States\", \"United Kingdom\", \"Germany\", \"Canada\", \"Australia\"]";
 
     @Lob
-    @Column(columnDefinition = "CLOB")
+    @Column(columnDefinition = "TEXT")
     private String workModesJson = "[\"REMOTE\", \"HYBRID\", \"ON_SITE\"]";
 
     private String experienceRange = "0-2 years"; // 0-2 years, 2-5 years, 5+ years
@@ -41,7 +41,7 @@ public class SearchPreference {
     private Integer maxResults = 30;
 
     @Lob
-    @Column(columnDefinition = "CLOB")
+    @Column(columnDefinition = "TEXT")
     private String selectedSourcesJson = "[\"REMOTEOK\", \"GREENHOUSE\", \"LEVER\", \"WE_WORK_REMOTELY\", \"GOOGLE_JOBS\"]";
 
     private LocalDateTime updatedAt = LocalDateTime.now();

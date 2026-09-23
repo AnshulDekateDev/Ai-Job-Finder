@@ -26,7 +26,7 @@ public class Resume {
     private Long fileSize;
 
     @Lob
-    @Column(columnDefinition = "CLOB")
+    @Column(columnDefinition = "TEXT")
     private String rawText;
 
     private LocalDateTime uploadedAt = LocalDateTime.now();

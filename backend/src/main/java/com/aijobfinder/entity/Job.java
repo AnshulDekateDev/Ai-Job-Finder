@@ -33,15 +33,15 @@ public class Job {
     private String salary;
 
     @Lob
-    @Column(columnDefinition = "CLOB")
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @Lob
-    @Column(columnDefinition = "CLOB")
+    @Column(columnDefinition = "TEXT")
     private String requirements;
 
     @Lob
-    @Column(columnDefinition = "CLOB")
+    @Column(columnDefinition = "TEXT")
     private String skillsJson = "[]"; // ["Java", "Spring Boot", ...]
 
     private Double minExperienceRequired = 0.0;
