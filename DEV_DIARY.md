@@ -147,6 +147,17 @@ Ai-Job-Finder/
 
 ---
 
+### Entry #6 — 2026-09-25: Forgot Password & Reset Password Flow
+- **Work Completed**:
+  - Added `POST /api/auth/forgot-password` and `POST /api/auth/reset-password` endpoints in FastAPI backend.
+  - Implemented 6-digit secure verification code generation with 15-minute expiration and max attempt rate limiting.
+  - Updated Pydantic schemas in `schemas/auth.py` and API client in `frontend/src/api.js`.
+  - Added `resetPassword` to `AuthContext.jsx` with automatic JWT issuance and seamless instant login.
+  - Redesigned `AuthModal.jsx` to include interactive "Forgot password?" trigger, email verification code display banner with 1-click Auto-fill, live password strength meter, and seamless redirect to dashboard.
+  - Verified complete flow via automated browser subagent.
+
+---
+
 ### Entry #5 — 2026-09-24: Gemini 3.6 Upgrade & Live AI Resume Parser
 - **Commits / Updates**:
   - Resolved `400 Bad Request` during resume upload caused by Google's deprecation of `gemini-1.5-flash` on API v1beta.

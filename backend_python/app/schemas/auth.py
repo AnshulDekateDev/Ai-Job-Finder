@@ -30,3 +30,15 @@ class AuthResponse(BaseModel):
 
     class Config:
         populate_by_name = True
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    code: str
+    newPassword: str = Field(alias="newPassword")
+
+    class Config:
+        populate_by_name = True
+

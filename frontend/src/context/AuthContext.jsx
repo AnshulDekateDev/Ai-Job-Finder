@@ -48,6 +48,16 @@ export function AuthProvider({ children }) {
     return userData;
   };
 
+  const resetPassword = async (email, code, newPassword) => {
+    const res = await authApi.resetPassword(email, code, newPassword);
+    const { token, userId, fullName } = res.data;
+    const userData = { userId, email, fullName };
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
+    return userData;
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -55,7 +65,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, resetPassword, logout }}>
       {children}
     </AuthContext.Provider>
   );
