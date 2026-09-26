@@ -69,3 +69,35 @@ def migrate_legacy_postgres_lobs(bind_engine):
         logger.info("Legacy LOB check & migration completed successfully.")
     except Exception as outer_e:
         logger.warning(f"LOB migration check skipped: {outer_e}")
+
+def migrate_supabase_auth_columns(bind_engine):
+    """
+    Ensure the 'users' table has 'supabase_uid' column and 'password_hash' is nullable.
+    Works seamlessly for both PostgreSQL and SQLite.
+    """
+    from sqlalchemy import inspect
+    try:
+        insp = inspect(bind_engine)
+        if not insp.has_table("users"):
+            return
+
+        cols = [c["name"] for c in insp.get_columns("users")]
+        is_postgres = "postgres" in str(bind_engine.url).lower()
+
+        with bind_engine.begin() as conn:
+            if "supabase_uid" not in cols:
+                logger.info("Migrating: Adding 'supabase_uid' column to users table...")
+                if is_postgres:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS supabase_uid VARCHAR(255) UNIQUE;"))
+                else:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN supabase_uid VARCHAR(255);"))
+                logger.info("Successfully added 'supabase_uid' column to users table.")
+
+            if is_postgres:
+                try:
+                    conn.execute(text("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;"))
+                except Exception:
+                    pass
+    except Exception as e:
+        logger.warning(f"Supabase auth columns migration notice: {e}")
+

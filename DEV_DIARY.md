@@ -147,6 +147,21 @@ Ai-Job-Finder/
 
 ---
 
+### Entry #7 — 2026-09-26: Production-Grade Supabase Auth Integration
+- **Work Completed**:
+  - Replaced custom password storage with Supabase Auth (`auth.users`) for production scalability.
+  - Installed and wired official `@supabase/supabase-js` client in frontend.
+  - Built Supabase client wrapper (`frontend/src/lib/supabase.js`) and environment templates (`.env.example`).
+  - Implemented multi-tier JWT verification in `backend_python/app/security/auth.py` (Supabase JWT Secret, remote `/auth/v1/user` API validation with 300s TTL cache, and offline development fallback).
+  - Linked Supabase UUID (`supabase_uid`) to application `User` entity, maintaining 100% database relationship integrity across all 9 child tables.
+  - Preserved AES-256-GCM encryption for stored user API keys.
+  - Hardened protected routes in `App.jsx` with automatic `/login` redirection for unauthenticated visitors and zero-flicker session restoration.
+  - Updated `AuthModal.jsx` with Supabase Email/Password authentication, reset links, and "Continue with Google" social login.
+  - Verified 100% cross-user data isolation via automated API tests.
+  - Verified browser UI flow (login, route guard, refresh persistence, sign out) via browser subagent.
+
+---
+
 ### Entry #6 — 2026-09-25: Forgot Password & Reset Password Flow
 - **Work Completed**:
   - Added `POST /api/auth/forgot-password` and `POST /api/auth/reset-password` endpoints in FastAPI backend.

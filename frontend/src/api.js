@@ -1,11 +1,23 @@
 import axios from 'axios';
+import { supabase, isSupabaseConfigured } from './lib/supabase';
 
 const api = axios.create({
   baseURL: '/api',
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+api.interceptors.request.use(async (config) => {
+  let token = localStorage.getItem('token');
+  if (!token && isSupabaseConfigured) {
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session?.access_token) {
+        token = data.session.access_token;
+        localStorage.setItem('token', token);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -14,10 +26,13 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      if (isSupabaseConfigured) {
+        try { await supabase.auth.signOut(); } catch (e) {}
+      }
       window.dispatchEvent(new Event('auth:unauthorized'));
     }
     return Promise.reject(error);

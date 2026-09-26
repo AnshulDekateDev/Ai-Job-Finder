@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { authApi } from '../../api';
 import { 
   Sparkles, 
   Mail, 
@@ -17,8 +16,35 @@ import {
   KeyRound
 } from 'lucide-react';
 
+function formatAuthError(err) {
+  if (!err) return 'An error occurred during authentication.';
+  const msg = err.message || err.error_description || (typeof err === 'string' ? err : '');
+  if (msg.includes('Invalid login credentials') || msg.includes('invalid_grant')) {
+    return 'Invalid email or password. Please verify your credentials.';
+  }
+  if (msg.includes('Email not confirmed')) {
+    return 'Please check your inbox and confirm your email before signing in.';
+  }
+  if (msg.includes('User already registered')) {
+    return 'An account with this email already exists. Please sign in instead.';
+  }
+  if (msg.includes('Password should be at least')) {
+    return 'Password must be at least 6 characters long.';
+  }
+  if (msg.includes('rate limit') || msg.includes('over_email_send_rate_limit')) {
+    return 'Too many email requests sent. Please wait a minute before trying again.';
+  }
+  return msg || 'Authentication failed. Please check your credentials.';
+}
+
 export default function AuthModal({ isOpen, onClose, initialIsRegister = false }) {
-  const { login, register, resetPassword } = useAuth();
+  const { 
+    signIn, 
+    signUp, 
+    resetPasswordForEmail, 
+    signInWithGoogle, 
+    isSupabaseConfigured 
+  } = useAuth();
   
   // Modes: 'login' | 'register' | 'forgot'
   const [mode, setMode] = useState(initialIsRegister ? 'register' : 'login');
@@ -29,19 +55,13 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   
-  // Forgot password states
-  const [resetCode, setResetCode] = useState('');
-  const [generatedCode, setGeneratedCode] = useState('');
-  const [codeSent, setCodeSent] = useState(false);
-  const [sendingCode, setSendingCode] = useState(false);
+  // State alerts
   const [successMessage, setSuccessMessage] = useState('');
-
-  // UI states
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -50,10 +70,6 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
       setPassword('');
       setConfirmPassword('');
       setFullName('');
-      setResetCode('');
-      setGeneratedCode('');
-      setCodeSent(false);
-      setSendingCode(false);
       setError('');
       setSuccessMessage('');
       setFieldErrors({});
@@ -96,21 +112,15 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
       errors.email = 'Please enter a valid email address (e.g. name@domain.com)';
     }
 
-    if (mode === 'forgot') {
-      if (!resetCode.trim()) {
-        errors.resetCode = 'Verification code is required';
-      } else if (resetCode.trim().length !== 6) {
-        errors.resetCode = 'Code must be exactly 6 digits';
+    if (mode !== 'forgot') {
+      if (!password) {
+        errors.password = 'Password is required';
+      } else if (password.length < 6) {
+        errors.password = 'Password must be at least 6 characters';
       }
     }
 
-    if (!password) {
-      errors.password = mode === 'forgot' ? 'New password is required' : 'Password is required';
-    } else if (password.length < 6) {
-      errors.password = 'Password must be at least 6 characters';
-    }
-
-    if (mode === 'register' || mode === 'forgot') {
+    if (mode === 'register') {
       if (!confirmPassword) {
         errors.confirmPassword = 'Please confirm your password';
       } else if (password !== confirmPassword) {
@@ -122,74 +132,44 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
     return Object.keys(errors).length === 0;
   };
 
-  const handleSendResetCode = async () => {
-    if (!email.trim()) {
-      setFieldErrors(prev => ({ ...prev, email: 'Please enter your email address first' }));
-      return;
-    }
-    if (!validateEmail(email)) {
-      setFieldErrors(prev => ({ ...prev, email: 'Please enter a valid email address' }));
-      return;
-    }
-
-    setSendingCode(true);
-    setError('');
-    setFieldErrors(prev => ({ ...prev, email: null }));
-
-    try {
-      const res = await authApi.forgotPassword(email.trim());
-      const receivedCode = res.data?.code || '';
-      setGeneratedCode(receivedCode);
-      setCodeSent(true);
-      if (receivedCode) {
-        setResetCode(receivedCode);
-        setFieldErrors(prev => ({ ...prev, resetCode: null }));
-      }
-    } catch (err) {
-      const errData = err.response?.data;
-      const errorMsg = errData?.error 
-        || (typeof errData?.detail === 'object' ? errData.detail?.error : errData?.detail) 
-        || errData?.message 
-        || 'Failed to generate reset code. Please check your email.';
-      setError(errorMsg);
-    } finally {
-      setSendingCode(false);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccessMessage('');
 
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
     try {
       if (mode === 'register') {
-        await register(email.trim(), password, fullName.trim());
-        onClose();
+        const res = await signUp(email.trim(), password, fullName.trim());
+        // Check if email confirmation is required by Supabase
+        if (isSupabaseConfigured && res?.user && !res?.session) {
+          setSuccessMessage('Registration successful! Please check your email to confirm your account.');
+        } else {
+          setSuccessMessage('Welcome! Setting up your workspace...');
+          setTimeout(() => onClose(), 800);
+        }
       } else if (mode === 'login') {
-        await login(email.trim(), password);
+        await signIn(email.trim(), password);
         onClose();
       } else if (mode === 'forgot') {
-        await resetPassword(email.trim(), resetCode.trim(), password);
-        setSuccessMessage('Password reset successfully! Continuing to dashboard...');
-        setTimeout(() => {
-          onClose();
-        }, 1200);
+        await resetPasswordForEmail(email.trim());
+        setSuccessMessage('Password reset link sent! Please check your email inbox to reset your password.');
       }
     } catch (err) {
-      const errData = err.response?.data;
-      const errorMsg = errData?.error 
-        || (typeof errData?.detail === 'object' ? errData.detail?.error : errData?.detail) 
-        || errData?.message 
-        || 'Authentication failed. Please check your credentials.';
-      setError(errorMsg);
+      setError(formatAuthError(err));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      setError(formatAuthError(err));
     }
   };
 
@@ -197,18 +177,12 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
     setMode(newMode);
     setPassword('');
     setConfirmPassword('');
-    if (newMode !== 'forgot' && mode === 'forgot') {
-      // keep email if present
-    }
-    setResetCode('');
-    setGeneratedCode('');
-    setCodeSent(false);
     setError('');
     setSuccessMessage('');
     setFieldErrors({});
   };
 
-  const strength = (mode === 'register' || mode === 'forgot') ? getPasswordStrength(password) : null;
+  const strength = mode === 'register' ? getPasswordStrength(password) : null;
 
   return (
     <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -245,7 +219,7 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
                 {mode === 'register' 
                   ? 'Get started with AI job matching' 
                   : mode === 'forgot' 
-                  ? 'Verify your email and choose a new password' 
+                  ? 'Enter your email to receive a password reset link' 
                   : 'Sign in to access your jobs & keys'}
               </p>
             </div>
@@ -302,7 +276,7 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
               <ArrowLeft size={16} />
               <span>Back to Sign In</span>
             </button>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Secure Verification</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Supabase Auth</span>
           </div>
         ) : (
           <div style={{
@@ -350,7 +324,7 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
 
         {/* Body Form */}
         <form onSubmit={handleSubmit} noValidate autoComplete="off">
-          {/* Hidden inputs to capture browser autofill */}
+          {/* Anti-autofill dummy captures */}
           <input type="text" style={{ display: 'none' }} tabIndex="-1" autoComplete="off" />
           <input type="password" style={{ display: 'none' }} tabIndex="-1" autoComplete="off" />
 
@@ -433,86 +407,28 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
             {/* Email Address */}
             <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label" style={{ marginBottom: '6px' }}>
-                <span>{mode === 'forgot' ? 'Registered Email Address' : 'Email Address'}</span>
+                <span>Email Address</span>
                 <span style={{ color: 'var(--danger)', fontSize: '0.75rem' }}>*</span>
               </label>
-
-              {mode === 'forgot' ? (
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <div style={{ position: 'relative', flex: 1 }}>
-                    <Mail size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: fieldErrors.email ? 'var(--danger)' : 'var(--text-muted)' }} />
-                    <input
-                      type="email"
-                      name="auth_email_field_custom"
-                      autoComplete="new-password"
-                      className="form-input"
-                      style={{
-                        paddingLeft: '38px',
-                        borderColor: fieldErrors.email ? 'var(--danger)' : 'var(--border-subtle)'
-                      }}
-                      placeholder="name@example.com"
-                      value={email}
-                      onChange={(e) => {
-                        setEmail(e.target.value);
-                        if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: null });
-                      }}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleSendResetCode}
-                    disabled={sendingCode || !email.trim()}
-                    style={{
-                      padding: '0 16px',
-                      background: codeSent ? 'rgba(99, 102, 241, 0.15)' : 'var(--accent-primary)',
-                      color: '#fff',
-                      border: codeSent ? '1px solid rgba(99, 102, 241, 0.4)' : 'none',
-                      borderRadius: '8px',
-                      fontSize: '0.82rem',
-                      fontWeight: 600,
-                      cursor: (sendingCode || !email.trim()) ? 'not-allowed' : 'pointer',
-                      whiteSpace: 'nowrap',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      opacity: (sendingCode || !email.trim()) ? 0.6 : 1,
-                      transition: 'var(--transition)'
-                    }}
-                  >
-                    {sendingCode ? (
-                      <>
-                        <Sparkles size={14} className="spin" />
-                        <span>Sending...</span>
-                      </>
-                    ) : codeSent ? (
-                      <span>Resend Code</span>
-                    ) : (
-                      <span>Get Code</span>
-                    )}
-                  </button>
-                </div>
-              ) : (
-                <div style={{ position: 'relative' }}>
-                  <Mail size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: fieldErrors.email ? 'var(--danger)' : 'var(--text-muted)' }} />
-                  <input
-                    type="email"
-                    name="auth_email_field_custom"
-                    autoComplete="new-password"
-                    className="form-input"
-                    style={{
-                      paddingLeft: '38px',
-                      borderColor: fieldErrors.email ? 'var(--danger)' : 'var(--border-subtle)'
-                    }}
-                    placeholder="name@example.com"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: null });
-                    }}
-                  />
-                </div>
-              )}
-
+              <div style={{ position: 'relative' }}>
+                <Mail size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: fieldErrors.email ? 'var(--danger)' : 'var(--text-muted)' }} />
+                <input
+                  type="email"
+                  name="auth_email_field_custom"
+                  autoComplete="new-password"
+                  className="form-input"
+                  style={{
+                    paddingLeft: '38px',
+                    borderColor: fieldErrors.email ? 'var(--danger)' : 'var(--border-subtle)'
+                  }}
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: null });
+                  }}
+                />
+              </div>
               {fieldErrors.email && (
                 <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px' }}>
                   {fieldErrors.email}
@@ -520,174 +436,91 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
               )}
             </div>
 
-            {/* Verification Code Banner & Input (Forgot mode only) */}
-            {mode === 'forgot' && (
-              <>
-                {codeSent && (
-                  <div style={{
-                    padding: '12px 14px',
-                    background: 'rgba(99, 102, 241, 0.12)',
-                    border: '1px solid rgba(99, 102, 241, 0.35)',
-                    borderRadius: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '8px',
-                    animation: 'fadeIn 0.2s ease'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <KeyRound size={20} color="var(--accent-primary)" style={{ flexShrink: 0 }} />
-                      <div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Verification Code (Valid 15m)</div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 800, letterSpacing: '3px', color: '#fff', fontFamily: 'monospace' }}>
-                          {generatedCode}
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setResetCode(generatedCode);
-                        if (fieldErrors.resetCode) setFieldErrors({ ...fieldErrors, resetCode: null });
-                      }}
-                      style={{
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        padding: '6px 12px',
-                        borderRadius: '6px',
-                        background: 'rgba(99, 102, 241, 0.25)',
-                        border: '1px solid rgba(99, 102, 241, 0.45)',
-                        color: 'var(--accent-primary)',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Auto-fill
-                    </button>
-                  </div>
-                )}
-
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ marginBottom: '6px' }}>
-                    <span>6-Digit Verification Code</span>
+            {/* Password (Login or Register) */}
+            {mode !== 'forgot' && (
+              <div className="form-group" style={{ margin: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label className="form-label" style={{ margin: 0 }}>
+                    <span>Password</span>
                     <span style={{ color: 'var(--danger)', fontSize: '0.75rem' }}>*</span>
                   </label>
-                  <div style={{ position: 'relative' }}>
-                    <ShieldCheck size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: fieldErrors.resetCode ? 'var(--danger)' : 'var(--text-muted)' }} />
-                    <input
-                      type="text"
-                      maxLength={6}
-                      name="auth_reset_code_custom"
-                      autoComplete="off"
-                      className="form-input"
+
+                  {strength && password && (
+                    <span style={{ fontSize: '0.72rem', color: strength.color, fontWeight: 600 }}>
+                      {strength.label}
+                    </span>
+                  )}
+
+                  {mode === 'login' && (
+                    <button
+                      type="button"
+                      onClick={() => switchMode('forgot')}
                       style={{
-                        paddingLeft: '38px',
-                        letterSpacing: '4px',
-                        fontFamily: 'monospace',
-                        fontWeight: 700,
-                        borderColor: fieldErrors.resetCode ? 'var(--danger)' : 'var(--border-subtle)'
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--accent-primary)',
+                        fontSize: '0.76rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        padding: 0
                       }}
-                      placeholder="••••••"
-                      value={resetCode}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-                        setResetCode(val);
-                        if (fieldErrors.resetCode) setFieldErrors({ ...fieldErrors, resetCode: null });
-                      }}
-                    />
-                  </div>
-                  {fieldErrors.resetCode && (
-                    <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px' }}>
-                      {fieldErrors.resetCode}
-                    </p>
+                      onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                      onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                    >
+                      Forgot password?
+                    </button>
                   )}
                 </div>
-              </>
-            )}
 
-            {/* Password */}
-            <div className="form-group" style={{ margin: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <label className="form-label" style={{ margin: 0 }}>
-                  <span>{mode === 'forgot' ? 'New Password' : 'Password'}</span>
-                  <span style={{ color: 'var(--danger)', fontSize: '0.75rem' }}>*</span>
-                </label>
-
-                {strength && password && (
-                  <span style={{ fontSize: '0.72rem', color: strength.color, fontWeight: 600 }}>
-                    {strength.label}
-                  </span>
-                )}
-
-                {mode === 'login' && (
+                <div style={{ position: 'relative' }}>
+                  <Lock size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: fieldErrors.password ? 'var(--danger)' : 'var(--text-muted)' }} />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    name="auth_password_field_custom"
+                    autoComplete="new-password"
+                    className="form-input"
+                    style={{
+                      paddingLeft: '38px',
+                      paddingRight: '38px',
+                      borderColor: fieldErrors.password ? 'var(--danger)' : 'var(--border-subtle)'
+                    }}
+                    placeholder={mode === 'register' ? 'Min 6 characters' : 'Enter password'}
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (fieldErrors.password) setFieldErrors({ ...fieldErrors, password: null });
+                    }}
+                  />
                   <button
                     type="button"
-                    onClick={() => switchMode('forgot')}
+                    onClick={() => setShowPassword(!showPassword)}
                     style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '10px',
                       background: 'none',
                       border: 'none',
-                      color: 'var(--accent-primary)',
-                      fontSize: '0.76rem',
-                      fontWeight: 600,
+                      color: 'var(--text-muted)',
                       cursor: 'pointer',
-                      padding: 0,
-                      transition: 'var(--transition)'
+                      padding: '2px'
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-                    onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
                   >
-                    Forgot password?
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
+                </div>
+                {fieldErrors.password && (
+                  <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px' }}>
+                    {fieldErrors.password}
+                  </p>
                 )}
               </div>
+            )}
 
-              <div style={{ position: 'relative' }}>
-                <Lock size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: fieldErrors.password ? 'var(--danger)' : 'var(--text-muted)' }} />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  name="auth_password_field_custom"
-                  autoComplete="new-password"
-                  className="form-input"
-                  style={{
-                    paddingLeft: '38px',
-                    paddingRight: '38px',
-                    borderColor: fieldErrors.password ? 'var(--danger)' : 'var(--border-subtle)'
-                  }}
-                  placeholder={mode === 'forgot' ? 'Enter new password (min 6 chars)' : mode === 'register' ? 'Min 6 characters' : 'Enter password'}
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (fieldErrors.password) setFieldErrors({ ...fieldErrors, password: null });
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '10px',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                    padding: '2px'
-                  }}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-              {fieldErrors.password && (
-                <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px' }}>
-                  {fieldErrors.password}
-                </p>
-              )}
-            </div>
-
-            {/* Confirm Password (Register or Forgot mode) */}
-            {(mode === 'register' || mode === 'forgot') && (
+            {/* Confirm Password (Register mode only) */}
+            {mode === 'register' && (
               <div className="form-group" style={{ margin: 0 }}>
                 <label className="form-label" style={{ marginBottom: '6px' }}>
-                  <span>{mode === 'forgot' ? 'Confirm New Password' : 'Confirm Password'}</span>
+                  <span>Confirm Password</span>
                   <span style={{ color: 'var(--danger)', fontSize: '0.75rem' }}>*</span>
                 </label>
                 <div style={{ position: 'relative' }}>
@@ -702,7 +535,7 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
                       paddingRight: '38px',
                       borderColor: fieldErrors.confirmPassword ? 'var(--danger)' : 'var(--border-subtle)'
                     }}
-                    placeholder="Re-enter new password"
+                    placeholder="Re-enter password"
                     value={confirmPassword}
                     onChange={(e) => {
                       setConfirmPassword(e.target.value);
@@ -743,7 +576,7 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
                 padding: '12px',
                 fontSize: '0.95rem',
                 fontWeight: 700,
-                marginTop: '8px',
+                marginTop: '4px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -758,7 +591,7 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
                     {mode === 'register' 
                       ? 'Creating Account...' 
                       : mode === 'forgot' 
-                      ? 'Resetting Password...' 
+                      ? 'Sending Reset Link...' 
                       : 'Signing In...'}
                   </span>
                 </>
@@ -768,13 +601,61 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
                     {mode === 'register' 
                       ? 'Create Free Account' 
                       : mode === 'forgot' 
-                      ? 'Reset Password & Continue' 
+                      ? 'Send Reset Link' 
                       : 'Sign In to Dashboard'}
                   </span>
                   <ArrowRight size={18} />
                 </>
               )}
             </button>
+
+            {/* Google OAuth (Social Login) */}
+            {mode !== 'forgot' && isSupabaseConfigured && (
+              <>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  margin: '4px 0'
+                }}>
+                  <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>or</span>
+                  <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '8px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid var(--border-subtle)',
+                    color: '#fff',
+                    fontSize: '0.88rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    transition: 'var(--transition)'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                  </svg>
+                  <span>Continue with Google</span>
+                </button>
+              </>
+            )}
+
           </div>
         </form>
 
@@ -787,7 +668,7 @@ export default function AuthModal({ isOpen, onClose, initialIsRegister = false }
           fontSize: '0.78rem',
           color: 'var(--text-muted)'
         }}>
-          <span>🔒 Secured with BCrypt password hashing & JWT token encryption.</span>
+          <span>⚡ Secured with Supabase Auth & JWT access token verification.</span>
         </div>
       </div>
     </div>

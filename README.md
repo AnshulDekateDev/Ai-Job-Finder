@@ -59,3 +59,95 @@ npm run dev
 
 ## 🔒 Security & Privacy
 API keys entered in the UI are encrypted before storage with AES-256-GCM and masked in the UI (`••••••••••••••••9F82`). They are only decrypted backend-side in memory when dispatching provider queries.
+
+---
+
+## 🔐 Authentication Setup (Supabase Auth)
+
+The application uses **Supabase Auth** for identity and session management, while storing application data in Supabase PostgreSQL (with resilient local SQLite fallback for offline development).
+
+```
+React / Vite  ──(Supabase Client)──▶  Supabase Auth (auth.users)
+     │                                        │
+     ▼                                        ▼ (Supabase JWT)
+Protected Routes & Client State      FastAPI Backend
+                                              │
+                                              ▼ (Verify JWT & Map UUID)
+                                     SQLAlchemy ORM (User-Isolated Data)
+```
+
+### 1. Supabase Dashboard Checklist
+
+1. **Create / Open Supabase Project**: Go to [supabase.com](https://supabase.com) and navigate to your project dashboard (`pkhvagsatjfgjjtqzicy`).
+2. **Enable Email Provider**:
+   * In the left sidebar, navigate to **Authentication** ➔ **Providers**.
+   * Ensure **Email** is toggled **ON**.
+   * *(Optional)* If you want users to log in immediately without waiting for confirmation emails, turn off **"Confirm email"** under Email Auth settings.
+3. **Configure Redirect URLs**:
+   * Navigate to **Authentication** ➔ **URL Configuration**.
+   * Set **Site URL** to: `http://localhost:5173`
+   * Add to **Redirect URLs**:
+     * `http://localhost:5173/*`
+     * `http://localhost:5173/#reset-password`
+4. **Retrieve API Keys**:
+   * Navigate to **Project Settings** (gear icon) ➔ **API**.
+   * Copy the **Project URL** (`https://pkhvagsatjfgjjtqzicy.supabase.co`).
+   * Copy the **`anon` `public`** key (safe for browser exposure).
+   * Copy the **`JWT Secret`** under **JWT Settings** (keep this secret on backend only!).
+
+### 2. Public vs. Secret Keys Reference
+
+| Key Name | Location | Exposure | Purpose |
+| :--- | :--- | :--- | :--- |
+| **`VITE_SUPABASE_URL`** | `frontend/.env` | 🟢 Public | Supabase API endpoint URL |
+| **`VITE_SUPABASE_ANON_KEY`** | `frontend/.env` | 🟢 Public | Client-side anon key used by browser to interact with Auth |
+| **`SUPABASE_URL`** | `backend_python/.env` | 🟡 Backend | Server-side Supabase verification URL |
+| **`SUPABASE_ANON_KEY`** | `backend_python/.env` | 🟡 Backend | Server-side auth client key |
+| **`SUPABASE_JWT_SECRET`** | `backend_python/.env` | 🔴 **Strictly Secret** | Signs & validates HS256 tokens locally in FastAPI |
+| **`SUPABASE_SERVICE_ROLE_KEY`** | *Never in frontend* | 🔴 **Strictly Secret** | Bypasses RLS. Do NOT expose to client bundles! |
+
+### 3. Environment Configuration
+
+#### Frontend (`frontend/.env`)
+Create `frontend/.env` (see `frontend/.env.example`):
+```ini
+VITE_SUPABASE_URL=https://pkhvagsatjfgjjtqzicy.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key-here
+```
+
+#### Backend (`backend_python/.env`)
+Create `backend_python/.env` (see `backend_python/.env.example`):
+```ini
+PORT=8000
+HOST=0.0.0.0
+DEBUG=True
+
+DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.pkhvagsatjfgjjtqzicy.supabase.co:5432/postgres?sslmode=require
+SQLITE_FALLBACK_URL=sqlite:///./jobfinder.db
+
+SUPABASE_URL=https://pkhvagsatjfgjjtqzicy.supabase.co
+SUPABASE_ANON_KEY=your-supabase-anon-key-here
+SUPABASE_JWT_SECRET=your-supabase-jwt-secret-here
+
+MASTER_ENCRYPTION_KEY=AiJobFinderMasterSecretKey2026Secure256BitSalt!!
+```
+
+### 4. Running the Application
+
+1. **Start Backend**:
+   ```bash
+   cd backend_python
+   .\.venv\Scripts\python run.py
+   ```
+2. **Start Frontend**:
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+3. **Register & Log In**:
+   * Open `http://localhost:5173/`.
+   * Unauthenticated visitors accessing `/resume` or `/search` are automatically guarded and redirected to `/login`.
+   * Sign In or Register with your email and password.
+   * Session persists automatically across browser refreshes.
+   * All user data (resumes, credentials, saved jobs, applications) is strictly isolated to the authenticated user.
+

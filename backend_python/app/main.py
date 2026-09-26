@@ -24,7 +24,8 @@ async def lifespan(app: FastAPI):
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("Database schemas verified and initialized successfully.")
-        from app.db_migration import migrate_legacy_postgres_lobs
+        from app.db_migration import migrate_legacy_postgres_lobs, migrate_supabase_auth_columns
+        migrate_supabase_auth_columns(engine)
         migrate_legacy_postgres_lobs(engine)
     except Exception as e:
         logger.error(f"Error initializing database: {e}")
